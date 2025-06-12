@@ -55,7 +55,7 @@ if ($action === 'assign' && $request_id > 0) {
             // Update request
             $stmt = $conn->prepare("UPDATE requests 
                                    SET status = 'assigned', 
-                                       assigned_technician_id = :tech_id,
+                                       technician_id = :tech_id,
                                        deadline = :deadline,
                                        updated_at = NOW()
                                    WHERE id = :id");
@@ -65,7 +65,7 @@ if ($action === 'assign' && $request_id > 0) {
             $stmt->execute();
             
             // Log the assignment
-            $stmt = $conn->prepare("INSERT INTO task_logs (request_id, technician_id, action, notes) 
+            $stmt = $conn->prepare("INSERT INTO task_logs (request_id, technician_id, action, details) 
                                    VALUES (:request_id, :technician_id, 'assigned', 'Request assigned to technician')");
             $stmt->bindParam(':request_id', $request_id);
             $stmt->bindParam(':technician_id', $technician_id);
@@ -110,6 +110,99 @@ if ($action === 'assign' && $request_id > 0) {
         $_SESSION['error'] = "Error fetching request: " . $e->getMessage();
         redirect('requests.php');
     }
+
+    // Display the assignment form
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Assign Technician - Online Routing System</title>
+        <?php include '../includes/header_links.php'; ?>
+    </head>
+    <body class="sidebar-mini layout-fixed">
+        <div class="wrapper">
+            <?php 
+            include '../includes/admin_navbar.php';
+            include '../includes/admin_sidebar.php';
+            ?>
+
+            <!-- Content Wrapper -->
+            <div class="content-wrapper">
+                <!-- Content Header -->
+                <div class="content-header">
+                    <div class="container-fluid">
+                        <div class="row mb-2">
+                            <div class="col-sm-6">
+                                <h1 class="m-0">Assign Technician</h1>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main content -->
+                <div class="content">
+                    <div class="container-fluid">
+                        <?php display_alerts(); ?>
+                        
+                        <div class="row">
+                            <div class="col-md-8 mx-auto">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Assign Technician to Request</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <?php if ($error): ?>
+                                            <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                                        <?php endif; ?>
+
+                                        <div class="request-details mb-4">
+                                            <h4>Request Details</h4>
+                                            <p><strong>Title:</strong> <?php echo htmlspecialchars($request['title']); ?></p>
+                                            <p><strong>Requester:</strong> <?php echo htmlspecialchars($request['first_name'] . ' ' . $request['last_name']); ?></p>
+                                            <p><strong>College:</strong> <?php echo htmlspecialchars($request['college_name']); ?></p>
+                                        </div>
+
+                                        <form method="POST" action="requests.php?action=assign&id=<?php echo $request_id; ?>">
+                                            <div class="form-group mb-3">
+                                                <label for="technician_id">Select Technician</label>
+                                                <select name="technician_id" id="technician_id" class="form-select" required>
+                                                    <option value="">Select a technician...</option>
+                                                    <?php foreach ($technicians as $tech): ?>
+                                                        <option value="<?php echo $tech['id']; ?>">
+                                                            <?php echo htmlspecialchars($tech['first_name'] . ' ' . $tech['last_name'] . ' (' . $tech['specialization'] . ')'); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+
+                                            <div class="form-group mb-3">
+                                                <label for="deadline">Deadline</label>
+                                                <input type="datetime-local" name="deadline" id="deadline" class="form-control" required>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <button type="submit" class="btn btn-primary">Assign Technician</button>
+                                                <a href="requests.php" class="btn btn-secondary">Cancel</a>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php include '../includes/footer.php'; ?>
+        </div>
+
+        <?php include '../includes/scripts.php'; ?>
+    </body>
+    </html>
+    <?php
+    exit();
 } elseif ($action === 'view' && $request_id > 0) {
     // View request details
     try {
@@ -120,7 +213,7 @@ if ($action === 'assign' && $request_id > 0) {
                               FROM requests r
                               JOIN users u ON r.requester_id = u.id
                               JOIN colleges c ON r.college_id = c.id
-                              LEFT JOIN technicians t ON r.assigned_technician_id = t.id
+                              LEFT JOIN technicians t ON r.technician_id = t.id
                               LEFT JOIN users ut ON t.user_id = ut.id
                               WHERE r.id = :id");
         $stmt->bindParam(':id', $request_id);
@@ -147,6 +240,118 @@ if ($action === 'assign' && $request_id > 0) {
         $_SESSION['error'] = "Error fetching request: " . $e->getMessage();
         redirect('requests.php');
     }
+
+    // Display the request details
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>View Request - Online Routing System</title>
+        <?php include '../includes/header_links.php'; ?>
+    </head>
+    <body class="sidebar-mini layout-fixed">
+        <div class="wrapper">
+            <?php 
+            include '../includes/admin_navbar.php';
+            include '../includes/admin_sidebar.php';
+            ?>
+
+            <!-- Content Wrapper -->
+            <div class="content-wrapper">
+                <!-- Content Header -->
+                <div class="content-header">
+                    <div class="container-fluid">
+                        <div class="row mb-2">
+                            <div class="col-sm-6">
+                                <h1 class="m-0">Request Details</h1>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main content -->
+                <div class="content">
+                    <div class="container-fluid">
+                        <?php display_alerts(); ?>
+                        
+                        <div class="row">
+                            <div class="col-md-8 mx-auto">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h3 class="card-title">Request Information</h3>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="request-details">
+                                            <h4>Basic Information</h4>
+                                            <p><strong>Title:</strong> <?php echo htmlspecialchars($request['title']); ?></p>
+                                            <p><strong>Description:</strong> <?php echo nl2br(htmlspecialchars($request['description'])); ?></p>
+                                            <p><strong>Requester:</strong> <?php echo htmlspecialchars($request['requester_first'] . ' ' . $request['requester_last']); ?></p>
+                                            <p><strong>College:</strong> <?php echo htmlspecialchars($request['college_name']); ?></p>
+                                            <p><strong>Status:</strong> <span class="badge status-<?php echo str_replace(' ', '-', strtolower($request['status'])); ?>"><?php echo ucwords(str_replace('_', ' ', $request['status'])); ?></span></p>
+                                            <p><strong>Priority:</strong> <span class="badge priority-<?php echo strtolower($request['priority']); ?>"><?php echo ucfirst($request['priority']); ?></span></p>
+                                            <p><strong>Created:</strong> <?php echo date('M d, Y H:i', strtotime($request['created_at'])); ?></p>
+                                            
+                                            <?php if ($request['tech_first']): ?>
+                                                <p><strong>Assigned Technician:</strong> <?php echo htmlspecialchars($request['tech_first'] . ' ' . $request['tech_last']); ?></p>
+                                            <?php endif; ?>
+                                            
+                                            <?php if (isset($request['deadline']) && $request['deadline']): ?>
+                                                <p><strong>Deadline:</strong> <?php echo date('M d, Y H:i', strtotime($request['deadline'])); ?></p>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <?php if (!empty($task_logs)): ?>
+                                            <div class="task-logs mt-4">
+                                                <h4>Task History</h4>
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Date</th>
+                                                                <th>Action</th>
+                                                                <th>Technician</th>
+                                                                <th>Details</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <?php foreach ($task_logs as $log): ?>
+                                                                <tr>
+                                                                    <td><?php echo date('M d, Y H:i', strtotime($log['created_at'])); ?></td>
+                                                                    <td><?php echo ucwords(str_replace('_', ' ', $log['action'])); ?></td>
+                                                                    <td><?php echo $log['first_name'] ? htmlspecialchars($log['first_name'] . ' ' . $log['last_name']) : 'N/A'; ?></td>
+                                                                    <td><?php echo htmlspecialchars($log['details']); ?></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <div class="mt-4">
+                                            <a href="requests.php" class="btn btn-secondary">Back to Requests</a>
+                                            <?php if ($request['status'] === 'pending'): ?>
+                                                <a href="requests.php?action=assign&id=<?php echo $request_id; ?>" class="btn btn-primary">Assign Technician</a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php include '../includes/footer.php'; ?>
+        </div>
+
+        <?php include '../includes/scripts.php'; ?>
+    </body>
+    </html>
+    <?php
+    exit();
 }
 
 // Get all requests for listing
@@ -163,7 +368,7 @@ try {
     // Test query to check if requests table exists and has data
     $test_stmt = $conn->query("SELECT COUNT(*) FROM requests");
     $request_count = $test_stmt->fetchColumn();
-    error_log("Total number of requests in database: " . $request_count);
+    echo "<!-- Debug: Total requests in database: " . $request_count . " -->";
 
     // Get colleges for filter
     $stmt = $conn->query("SELECT id, name FROM colleges ORDER BY name");
@@ -175,9 +380,9 @@ try {
            t.id as tech_id, ut.first_name as tech_first, ut.last_name as tech_last,
            c.name as college_name
            FROM requests r
-           LEFT JOIN users u ON r.requester_id = u.id
-           LEFT JOIN colleges c ON r.college_id = c.id
-           LEFT JOIN technicians t ON r.assigned_technician_id = t.id
+           INNER JOIN users u ON r.requester_id = u.id
+           INNER JOIN colleges c ON r.college_id = c.id
+           LEFT JOIN technicians t ON r.technician_id = t.id
            LEFT JOIN users ut ON t.user_id = ut.id";
     
     $params = [];
@@ -192,11 +397,10 @@ try {
         $where_clauses[] = "r.priority = :priority";
         $params[':priority'] = $priority_filter;
     }
-     if ($college_filter) {
+    if ($college_filter) {
         $where_clauses[] = "r.college_id = :college_id";
         $params[':college_id'] = $college_filter;
     }
-    // Add more filters as needed (e.g., technician)
 
     // Combine where clauses
     if (!empty($where_clauses)) {
@@ -207,8 +411,8 @@ try {
     $sql .= " ORDER BY r.priority DESC, r.created_at DESC"; // Prioritize high urgency
     
     // Debug: Print the SQL query
-    error_log("SQL Query: " . $sql);
-    error_log("Parameters: " . print_r($params, true));
+    echo "<!-- Debug: SQL Query: " . htmlspecialchars($sql) . " -->";
+    echo "<!-- Debug: Parameters: " . htmlspecialchars(print_r($params, true)) . " -->";
     
     // Prepare and execute the query
     $stmt = $conn->prepare($sql);
@@ -218,8 +422,28 @@ try {
     $stmt->execute();
     $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Debug: Print the raw $requests array
+    echo "<!-- Debug: Raw requests array: " . htmlspecialchars(print_r($requests, true)) . " -->";
+    
     // Debug: Print the number of results
-    error_log("Number of requests found: " . count($requests));
+    echo "<!-- Debug: Number of requests found: " . count($requests) . " -->";
+    if (count($requests) === 0) {
+        echo "<!-- Debug: No requests found. SQL: " . htmlspecialchars($sql) . " -->";
+        echo "<!-- Debug: Parameters: " . htmlspecialchars(print_r($params, true)) . " -->";
+        
+        // Let's check if the data exists in the tables
+        $check_users = $conn->query("SELECT COUNT(*) FROM users")->fetchColumn();
+        $check_colleges = $conn->query("SELECT COUNT(*) FROM colleges")->fetchColumn();
+        $check_requests = $conn->query("SELECT COUNT(*) FROM requests")->fetchColumn();
+        
+        echo "<!-- Debug: Users count: " . $check_users . " -->";
+        echo "<!-- Debug: Colleges count: " . $check_colleges . " -->";
+        echo "<!-- Debug: Requests count: " . $check_requests . " -->";
+        
+        // Check if the specific users exist
+        $check_specific_users = $conn->query("SELECT id, first_name, last_name FROM users WHERE id IN (7, 10)")->fetchAll(PDO::FETCH_ASSOC);
+        echo "<!-- Debug: Specific users: " . htmlspecialchars(print_r($check_specific_users, true)) . " -->";
+    }
     
 } catch(PDOException $e) {
     error_log("Database Error: " . $e->getMessage());
@@ -319,6 +543,31 @@ echo '<!-- DEBUG: Reached HTML output -->';
             padding: 0.3rem 0.7rem;
             font-size: 0.9rem;
             border-radius: 0.2rem;
+            margin: 0 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .table .btn-group .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .table .btn-group .btn i {
+            font-size: 1rem;
+        }
+        .table .btn-group .btn-info {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+        }
+        .table .btn-group .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            color: white;
+        }
+        .table .btn-group .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+            color: #212529;
         }
         .badge {
             font-size: 0.9em;
@@ -398,9 +647,12 @@ echo '<!-- DEBUG: Reached HTML output -->';
                                     <label class="form-label">College</label>
                                     <select name="college" class="form-select">
                                         <option value="">All Colleges</option>
-                                        <option value="cas">College of Arts and Sciences</option>
-                                        <option value="cba">College of Business Administration</option>
-                                        <option value="coe">College of Engineering</option>
+                                        <?php foreach (
+                                            $colleges as $college): ?>
+                                            <option value="<?php echo $college['id']; ?>" <?php if ($college_filter == $college['id']) echo 'selected'; ?>>
+                                                <?php echo htmlspecialchars($college['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
@@ -456,12 +708,17 @@ echo '<!-- DEBUG: Reached HTML output -->';
                                                     </td>
                                                     <td>
                                                         <div class="btn-group">
-                                                            <a href="requests.php?action=view&id=<?php echo $request['id']; ?>" class="btn btn-sm btn-info">
+                                                            <a href="requests.php?action=view&id=<?php echo $request['id']; ?>" class="btn btn-sm btn-info" title="View Details">
                                                                 <i class="fas fa-eye"></i>
                                                             </a>
                                                             <?php if ($request['status'] === 'pending'): ?>
-                                                                <a href="requests.php?action=assign&id=<?php echo $request['id']; ?>" class="btn btn-sm btn-primary">
+                                                                <a href="requests.php?action=assign&id=<?php echo $request['id']; ?>" class="btn btn-sm btn-primary" title="Assign Technician">
                                                                     <i class="fas fa-user-plus"></i>
+                                                                </a>
+                                                            <?php endif; ?>
+                                                            <?php if ($request['status'] === 'assigned' || $request['status'] === 'in_progress'): ?>
+                                                                <a href="requests.php?action=update&id=<?php echo $request['id']; ?>" class="btn btn-sm btn-warning" title="Update Status">
+                                                                    <i class="fas fa-edit"></i>
                                                                 </a>
                                                             <?php endif; ?>
                                                         </div>
